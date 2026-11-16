@@ -3,7 +3,7 @@ from .utils import to_gray, to_uint8
 
 
 class GrayScale(ImageFilter):
-    """Оттенки серого."""
+    #Оттенки серого
 
     name = "grayscale"
 

@@ -1,28 +1,26 @@
 from abc import ABC, abstractmethod
 
-import numpy as np
-
 
 class ImageFilter(ABC):
-    # Базовый класс фильтра
-
     name = ""
 
     @abstractmethod
-    def apply_filter(self, image: np.ndarray) -> np.ndarray:
-        # Принимает изображение BGR uint8, возвращает новое изображение
+    def apply_filter(self, image):
+        pass
 
     @staticmethod
-    def names() -> list[str]:
-        return [cls.name for cls in ImageFilter.__subclasses__()]
+    def names():
+        result = []
+        for filter_class in ImageFilter.__subclasses__():
+            result.append(filter_class.name)
+        return result
 
     @staticmethod
-    def get_filter(name: str, **params) -> "ImageFilter":
-        # Создаёт фильтр по имени
-        for cls in ImageFilter.__subclasses__():
-            if cls.name == name:
+    def get_filter(name, **params):
+        for filter_class in ImageFilter.__subclasses__():
+            if filter_class.name == name:
                 try:
-                    return cls(**params)
-                except TypeError as exc:
-                    raise ValueError(f"неверные параметры фильтра '{name}': {exc}") from None
-        raise ValueError(f"неизвестный фильтр '{name}', доступны: {', '.join(ImageFilter.names())}")
+                    return filter_class(**params)
+                except TypeError as error:
+                    raise ValueError(f"неверные параметры: {error}")
+        raise ValueError(f"неизвестный фильтр {name}, есть: {', '.join(ImageFilter.names())}")

@@ -1,26 +1,33 @@
 import numpy as np
 
 from .base import ImageFilter
+from .matte import Matte
 from .utils import to_uint8
 
 
 class Antique(ImageFilter):
-    #Сепия
-
     name = "antique"
 
-    # матрица сепии для порядка каналов B, G, R
-    SEPIA = np.array([
-        [0.131, 0.534, 0.272],
-        [0.168, 0.686, 0.349],
-        [0.189, 0.769, 0.393],
-    ], dtype=np.float32)
-
     def __init__(self, intensity=1.0):
-        self.intensity = intensity
+        self.intensity = float(intensity)
 
     def apply_filter(self, image):
         img = image.astype(np.float32)
-        sepia = np.clip(img @ self.SEPIA.T, 0, 255)
+        b = img[:, :, 0]
+        g = img[:, :, 1]
+        r = img[:, :, 2]
+
+        new_r = 0.393 * r + 0.769 * g + 0.189 * b
+        new_g = 0.349 * r + 0.686 * g + 0.168 * b
+        new_b = 0.272 * r + 0.534 * g + 0.131 * b
+
+        # собираем обратно в порядке B, G, R
+        sepia = np.dstack([new_b, new_g, new_r])
+        sepia = np.clip(sepia, 0, 255)
+
         k = self.intensity
-        return to_uint8((1 - k) * img + k * sepia)
+        result = to_uint8((1 - k) * img + k * sepia)
+
+        vignette = Matte(size=1.5, softness=0.5, color="black")
+
+        return vignette.apply_filter(result)

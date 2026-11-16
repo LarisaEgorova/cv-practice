@@ -1,47 +1,50 @@
 import numpy as np
 
 from .base import ImageFilter
-from .utils import blur, screen, to_gray, to_uint8
+from .utils import blur, convolve, to_gray, to_uint8
 
 
 class Neon(ImageFilter):
-    """Неоновые контуры."""
-
     name = "neon"
 
-    COLORS = {"cyan": (255, 255, 0), "pink": (180, 60, 255), "green": (60, 255, 60), "yellow": (0, 240, 255)}
+    # цвета в порядке B, G, R
+    COLORS = {
+        "pink": (200, 60, 255),
+        "blue": (255, 150, 0),
+        "green": (80, 255, 80),
+        "yellow": (0, 230, 255),
+    }
 
-    def __init__(self, color="rainbow", threshold=0.12, glow=1.2, background=0.15):
-        if color not in ("rainbow", "source", *self.COLORS):
-            raise ValueError(f"color должен быть одним из: rainbow, source, {', '.join(self.COLORS)}")
-        self.color = color
-        self.threshold = threshold
-        self.glow = glow
-        self.background = background
+    # ядра оператора Собеля
+    SOBEL_X = [[-1, 0, 1],
+               [-2, 0, 2],
+               [-1, 0, 1]]
+
+    SOBEL_Y = [[-1, -2, -1],
+               [0, 0, 0],
+               [1, 2, 1]]
+
+    def __init__(self, color="pink", glow=1.5):
+        if color not in self.COLORS:
+            raise ValueError(f"color может быть: {', '.join(self.COLORS)}")
+        self.color = np.array(self.COLORS[color], dtype=np.float32)
+        self.glow = float(glow)
 
     def apply_filter(self, image):
-        img = image.astype(np.float32)
+        h, w = image.shape[:2]
+        step = max(1, max(h, w) // 400)
+        gray = to_gray(blur(image, 2 * step))
 
-        # оператор Собеля
-        p = np.pad(blur(to_gray(img), 1), 1, mode="edge")
-        gx = (p[:-2, 2:] + 2 * p[1:-1, 2:] + p[2:, 2:]) - (p[:-2, :-2] + 2 * p[1:-1, :-2] + p[2:, :-2])
-        gy = (p[2:, :-2] + 2 * p[2:, 1:-1] + p[2:, 2:]) - (p[:-2, :-2] + 2 * p[:-2, 1:-1] + p[:-2, 2:])
-        mag = np.sqrt(gx ** 2 + gy ** 2)
-        mag = np.clip(mag / (np.percentile(mag, 99) or 1), 0, 1)
-        edges = np.clip((mag - self.threshold) / (1 - self.threshold), 0, 1)[..., None]
+        gx = convolve(gray, self.SOBEL_X)
+        gy = convolve(gray, self.SOBEL_Y)
+        edges = np.sqrt(gx ** 2 + gy ** 2)
 
-        # цвет линий
-        if self.color == "rainbow":
-            a = np.arctan2(gy, gx)
-            tint = 127.5 * (1 + np.dstack([np.cos(a + 2.094), np.cos(a - 2.094), np.cos(a)]))
-        elif self.color == "source":
-            low, high = img.min(axis=2, keepdims=True), img.max(axis=2, keepdims=True)
-            tint = (img - low) / np.maximum(high - low, 1) * 255
-        else:
-            tint = np.array(self.COLORS[self.color], np.float32)
+        edges = edges / np.percentile(edges, 99)
+        edges = np.clip((edges - 0.3) / 0.7, 0, 1)[:, :, np.newaxis]
 
-        # свечение
-        lines = tint * edges
-        halo = 0.9 * blur(lines, 2) + 0.7 * blur(lines, 6) + 0.5 * blur(lines, 14)
-        neon = np.clip(lines + self.glow * halo, 0, 255)
-        return to_uint8(screen(img * self.background, neon))
+        lines = blur(edges * self.color, step)
+        glow = blur(lines, 4 * step) + blur(lines, 12 * step) + blur(lines, 30 * step)
+
+        background = image.astype(np.float32) * 0.15
+        result = background + lines + self.glow * glow
+        return to_uint8(result)
