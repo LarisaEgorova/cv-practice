@@ -19,4 +19,10 @@ class OldPhoto(ImageFilter):
         grain = np.random.normal(0, self.noise, (h, w))
         img = img + grain[:, :, np.newaxis]
 
+        for _ in range(self.scratches):
+            x = np.random.randint(0, w)
+            y = np.random.randint(0, h // 2)
+            length = np.random.randint(h // 10, h // 2)
+            img[y:y + length, x] += np.random.randint(60, 120)
+
         return to_uint8(img)

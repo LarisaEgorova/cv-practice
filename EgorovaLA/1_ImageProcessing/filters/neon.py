@@ -45,6 +45,6 @@ class Neon(ImageFilter):
         lines = blur(edges * self.color, step)
         glow = blur(lines, 4 * step) + blur(lines, 12 * step) + blur(lines, 30 * step)
 
-        background = image.astype(np.float32) * 0.15
+        background = image.astype(np.float32) * 0.7
         result = background + lines + self.glow * glow
         return to_uint8(result)
