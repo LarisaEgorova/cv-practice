@@ -8,7 +8,7 @@ from .utils import to_uint8
 class OldPhoto(ImageFilter):
     name = "oldphoto"
 
-    def __init__(self, noise=20, scratches=8):
+    def __init__(self, noise=20, scratches=20):
         self.noise = float(noise)
         self.scratches = int(scratches)
 
@@ -20,9 +20,15 @@ class OldPhoto(ImageFilter):
         img = img + grain[:, :, np.newaxis]
 
         for _ in range(self.scratches):
-            x = np.random.randint(0, w)
-            y = np.random.randint(0, h // 2)
-            length = np.random.randint(h // 10, h // 2)
-            img[y:y + length, x] += np.random.randint(60, 120)
+            x0 = np.random.randint(0, w)
+            y0 = np.random.randint(0, h // 2)
+            length = np.random.randint(h // 10, h // 5)
+            slope = np.random.uniform(-1, 1)
+            bright = np.random.randint (60, 120)
+            for t in range(length):
+                y = y0 + t
+                x = int (x0 + slope * t)
+                if 0 <= x < w and 0 <= y < h:
+                    img[y,x]+=bright
 
         return to_uint8(img)
